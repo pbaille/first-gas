@@ -347,7 +347,7 @@ func (s *Server) getSuggestions(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if entryID != "" {
-		entries, err = s.store.FindSimilar(entryID, limit)
+		entries, err = s.store.FindSimilarByTags(entryID, limit)
 	} else {
 		entries, err = s.store.GetSuggestions(limit)
 	}

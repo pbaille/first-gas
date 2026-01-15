@@ -123,18 +123,6 @@ func (s *Store) ListEntries(limit, offset int) ([]domain.Entry, error) {
 	return entries, nil
 }
 
-// DeleteEntry removes an entry by ID (cascades to entry_tags and embeddings)
-func (s *Store) DeleteEntry(id string) error {
-	result, err := s.db.Exec("DELETE FROM entries WHERE id = ?", id)
-	if err != nil {
-		return fmt.Errorf("delete entry: %w", err)
-	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("entry not found")
-	}
-	return nil
-}
 
 // GetOrCreateTag finds a tag by name or creates it
 func (s *Store) GetOrCreateTag(name string, parentID *string) (*domain.Tag, error) {

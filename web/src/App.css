@@ -135,7 +135,7 @@ button:disabled {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-columns: minmax(0, 700px) 250px;
   gap: 1.5rem;
 }
 

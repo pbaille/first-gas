@@ -178,25 +178,26 @@ function App() {
           {error && <p className="error">{error}</p>}
         </section>
 
-        <section className="search-section">
-          <input
-            type="text"
-            className="search-input"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search..."
-          />
-          {selectedTag && (
-            <div className="active-filter">
-              <span className="tag selected">{selectedTag}</span>
-              <button onClick={() => setSelectedTag(null)}>×</button>
-            </div>
-          )}
-        </section>
-
         <div className="content-grid">
           <section className="entries-section">
-            <h2>Entries ({entries.length})</h2>
+            <div className="entries-header">
+              <h2>Entries ({entries.length})</h2>
+              <div className="search-controls">
+                {selectedTag && (
+                  <div className="active-filter">
+                    <span className="tag selected">{selectedTag}</span>
+                    <button onClick={() => setSelectedTag(null)}>×</button>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  className="search-input"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search..."
+                />
+              </div>
+            </div>
             <ul className="entries-list">
               {entries.map(entry => (
                 <li key={entry.id} className="entry-card">

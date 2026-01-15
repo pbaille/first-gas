@@ -61,7 +61,7 @@ function App() {
   }
 
   async function addEntry(e) {
-    e.preventDefault()
+    if (e) e.preventDefault()
     if (!content.trim()) return
 
     setLoading(true)
@@ -76,6 +76,7 @@ function App() {
       setContent('')
       fetchEntries()
       fetchTags()
+      fetchSuggestions()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -94,6 +95,13 @@ function App() {
       fetchSuggestions()
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  function handleKeyDown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      addEntry()
     }
   }
 
@@ -123,40 +131,35 @@ function App() {
       </header>
 
       <main>
-        <section className="add-section">
-          <h2>Add Entry</h2>
+        <section className="add-section hero">
           <form onSubmit={addEntry}>
             <textarea
+              className="hero-input"
               value={content}
               onChange={e => setContent(e.target.value)}
-              placeholder="Enter your content..."
-              rows={4}
+              onKeyDown={handleKeyDown}
+              placeholder="What's on your mind? (⌘+Enter to save)"
+              rows={3}
+              autoFocus
             />
-            <button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Entry'}
+            <button type="submit" className="subtle-btn" disabled={loading}>
+              {loading ? '...' : 'Save'}
             </button>
           </form>
           {error && <p className="error">{error}</p>}
         </section>
 
         <section className="search-section">
-          <h2>Search</h2>
-          <div className="search-controls">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search entries..."
-            />
-            {(search || selectedTag) && (
-              <button type="button" onClick={() => { setSearch(''); setSelectedTag(null); }}>
-                Clear
-              </button>
-            )}
-          </div>
+          <input
+            type="text"
+            className="search-input"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+          />
           {selectedTag && (
             <div className="active-filter">
-              Filtering by: <span className="tag selected">{selectedTag}</span>
+              <span className="tag selected">{selectedTag}</span>
               <button onClick={() => setSelectedTag(null)}>×</button>
             </div>
           )}

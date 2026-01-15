@@ -198,6 +198,59 @@ func (s *Store) ListTags() ([]domain.Tag, error) {
 	return tags, nil
 }
 
+// FindSimilar finds entries sharing tags with the given entry, excluding the entry itself
+func (s *Store) FindSimilar(entryID string, limit int) ([]domain.Entry, error) {
+	rows, err := s.db.Query(`
+		SELECT DISTINCT e.id, e.content, e.created_at, e.last_viewed_at
+		FROM entries e
+		JOIN entry_tags et ON e.id = et.entry_id
+		WHERE et.tag_id IN (
+			SELECT tag_id FROM entry_tags WHERE entry_id = ?
+		)
+		AND e.id != ?
+		ORDER BY e.last_viewed_at ASC NULLS FIRST, e.created_at DESC
+		LIMIT ?
+	`, entryID, entryID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("find similar: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// GetSuggestions returns entries the user hasn't viewed recently
+func (s *Store) GetSuggestions(limit int) ([]domain.Entry, error) {
+	rows, err := s.db.Query(`
+		SELECT id, content, created_at, last_viewed_at
+		FROM entries
+		ORDER BY last_viewed_at ASC NULLS FIRST, created_at DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get suggestions: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 // SearchEntries performs a simple text search
 func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	rows, err := s.db.Query(

@@ -38,6 +38,9 @@ func (s *Server) Run() error {
 	// Search
 	mux.HandleFunc("GET /search", s.searchEntries)
 
+	// Suggestions
+	mux.HandleFunc("GET /suggestions", s.getSuggestions)
+
 	// Health check
 	mux.HandleFunc("GET /health", s.health)
 
@@ -305,6 +308,45 @@ func (s *Server) searchEntries(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"entries": entries,
 		"query":   query,
+	})
+}
+
+func (s *Server) getSuggestions(w http.ResponseWriter, r *http.Request) {
+	limit := 10
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	// If entry_id provided, find similar entries
+	entryID := r.URL.Query().Get("entry_id")
+	var entries []domain.Entry
+	var err error
+
+	if entryID != "" {
+		entries, err = s.store.FindSimilar(entryID, limit)
+	} else {
+		entries, err = s.store.GetSuggestions(limit)
+	}
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Load tags for each entry
+	for i := range entries {
+		tags, err := s.store.GetEntryTags(entries[i].ID)
+		if err == nil {
+			entries[i].Tags = tags
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"suggestions": entries,
+		"limit":       limit,
+		"entry_id":    entryID,
 	})
 }
 

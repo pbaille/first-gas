@@ -151,23 +151,53 @@ button:disabled {
 }
 
 .no-entries,
-.no-tags {
+.no-tags,
+.no-suggestions {
   color: #666;
   font-style: italic;
 }
 
-.tags-section {
+.sidebar {
   border-left: 1px solid #333;
   padding-left: 1rem;
 }
 
 @media (max-width: 768px) {
-  .tags-section {
+  .sidebar {
     border-left: none;
     border-top: 1px solid #333;
     padding-left: 0;
     padding-top: 1rem;
   }
+}
+
+.tags-section {
+  margin-bottom: 1.5rem;
+}
+
+.suggestions-section {
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+}
+
+.suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestion-card {
+  padding: 0.5rem;
+  border: 1px solid #444;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  background: #1a1a1a;
+}
+
+.suggestion-content {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  color: #ccc;
 }
 
 .tag-tree {

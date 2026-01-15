@@ -6,6 +6,7 @@ const API = 'http://localhost:8080'
 function App() {
   const [entries, setEntries] = useState([])
   const [tags, setTags] = useState([])
+  const [suggestions, setSuggestions] = useState([])
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
   const [selectedTag, setSelectedTag] = useState(null)
@@ -14,6 +15,7 @@ function App() {
 
   useEffect(() => {
     fetchTags()
+    fetchSuggestions()
   }, [])
 
   useEffect(() => {
@@ -45,6 +47,16 @@ function App() {
       setTags(data.tags || [])
     } catch (err) {
       console.error('Failed to fetch tags')
+    }
+  }
+
+  async function fetchSuggestions() {
+    try {
+      const res = await fetch(`${API}/suggestions?limit=5`)
+      const data = await res.json()
+      setSuggestions(data.suggestions || [])
+    } catch (err) {
+      console.error('Failed to fetch suggestions')
     }
   }
 
@@ -165,10 +177,40 @@ function App() {
             </ul>
           </section>
 
-          <aside className="tags-section">
-            <h2>Tags</h2>
-            <TagTree nodes={tags} />
-            {tags.length === 0 && <p className="no-tags">No tags yet</p>}
+          <aside className="sidebar">
+            <section className="tags-section">
+              <h2>Tags</h2>
+              <TagTree nodes={tags} />
+              {tags.length === 0 && <p className="no-tags">No tags yet</p>}
+            </section>
+
+            <section className="suggestions-section">
+              <h2>Suggestions</h2>
+              {suggestions.length > 0 ? (
+                <ul className="suggestions-list">
+                  {suggestions.map(entry => (
+                    <li key={entry.id} className="suggestion-card">
+                      <p className="suggestion-content">{entry.content.slice(0, 100)}{entry.content.length > 100 ? '...' : ''}</p>
+                      {entry.tags && entry.tags.length > 0 && (
+                        <div className="entry-tags">
+                          {entry.tags.map(tag => (
+                            <span
+                              key={tag.id}
+                              className={`tag clickable ${selectedTag === tag.name ? 'selected' : ''}`}
+                              onClick={() => selectTag(tag.name)}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-suggestions">No suggestions yet</p>
+              )}
+            </section>
           </aside>
         </div>
       </main>

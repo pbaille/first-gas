@@ -4,10 +4,11 @@ import "time"
 
 // Entry represents a captured piece of content
 type Entry struct {
-	ID        string    `json:"id"`
-	Content   string    `json:"content"`
-	Tags      []Tag     `json:"tags,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID           string     `json:"id"`
+	Content      string     `json:"content"`
+	Tags         []Tag      `json:"tags,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastViewedAt *time.Time `json:"last_viewed_at,omitempty"`
 }
 
 // Tag represents a classification label with optional hierarchy

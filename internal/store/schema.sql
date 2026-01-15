@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS entries (
     id TEXT PRIMARY KEY,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_viewed_at TIMESTAMP
 );
 
 -- Tags: emergent from classification

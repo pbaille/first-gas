@@ -63,9 +63,9 @@ func (s *Store) AddEntry(content string) (*domain.Entry, error) {
 func (s *Store) GetEntry(id string) (*domain.Entry, error) {
 	var entry domain.Entry
 	err := s.db.QueryRow(
-		"SELECT id, content, created_at FROM entries WHERE id = ?",
+		"SELECT id, content, created_at, last_viewed_at FROM entries WHERE id = ?",
 		id,
-	).Scan(&entry.ID, &entry.Content, &entry.CreatedAt)
+	).Scan(&entry.ID, &entry.Content, &entry.CreatedAt, &entry.LastViewedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get entry: %w", err)
 	}
@@ -83,7 +83,7 @@ func (s *Store) GetEntry(id string) (*domain.Entry, error) {
 // ListEntries returns recent entries with pagination
 func (s *Store) ListEntries(limit, offset int) ([]domain.Entry, error) {
 	rows, err := s.db.Query(
-		"SELECT id, content, created_at FROM entries ORDER BY created_at DESC LIMIT ? OFFSET ?",
+		"SELECT id, content, created_at, last_viewed_at FROM entries ORDER BY created_at DESC LIMIT ? OFFSET ?",
 		limit, offset,
 	)
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *Store) ListEntries(limit, offset int) ([]domain.Entry, error) {
 	var entries []domain.Entry
 	for rows.Next() {
 		var e domain.Entry
-		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, e)
@@ -201,7 +201,7 @@ func (s *Store) ListTags() ([]domain.Tag, error) {
 // SearchEntries performs a simple text search
 func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	rows, err := s.db.Query(
-		"SELECT id, content, created_at FROM entries WHERE content LIKE ? ORDER BY created_at DESC",
+		"SELECT id, content, created_at, last_viewed_at FROM entries WHERE content LIKE ? ORDER BY created_at DESC",
 		"%"+query+"%",
 	)
 	if err != nil {
@@ -212,7 +212,7 @@ func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	var entries []domain.Entry
 	for rows.Next() {
 		var e domain.Entry
-		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, e)

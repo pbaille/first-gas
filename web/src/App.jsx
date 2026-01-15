@@ -13,6 +13,7 @@ function App() {
   const [error, setError] = useState(null)
   const [selectedTag, setSelectedTag] = useState(null)
   const [breadcrumb, setBreadcrumb] = useState([])
+  const [expandedEntries, setExpandedEntries] = useState(new Set())
 
   useEffect(() => {
     fetchEntries()
@@ -81,6 +82,18 @@ function App() {
     }
   }
 
+  async function deleteEntry(id) {
+    if (!confirm('Delete this entry?')) return
+    try {
+      const res = await fetch(`${API}/entries/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      fetchEntries(selectedTag?.id)
+      fetchTags()
+    } catch (err) {
+      setError('Delete failed')
+    }
+  }
+
   function buildBreadcrumb(tagId) {
     const path = []
     let currentId = tagId
@@ -114,6 +127,24 @@ function App() {
     setSelectedTag(null)
     setBreadcrumb([])
     fetchEntries()
+  }
+
+  function toggleExpanded(entryId) {
+    setExpandedEntries(prev => {
+      const next = new Set(prev)
+      if (next.has(entryId)) {
+        next.delete(entryId)
+      } else {
+        next.add(entryId)
+      }
+      return next
+    })
+  }
+
+  function isLongContent(content) {
+    // Consider content "long" if it has more than 4 lines or 300+ chars
+    const lineCount = (content.match(/\n/g) || []).length + 1
+    return lineCount > 4 || content.length > 300
   }
 
   function TagTree({ nodes, level = 0 }) {
@@ -205,9 +236,19 @@ function App() {
               )}
             </div>
             <ul className="entries-list">
-              {entries.map(entry => (
+              {entries.map(entry => {
+                const isExpanded = expandedEntries.has(entry.id)
+                const isLong = isLongContent(entry.content)
+                return (
                 <li key={entry.id} className="entry-card">
-                  <p className="entry-content">{entry.content}</p>
+                  <p className={`entry-content ${isLong && !isExpanded ? 'truncated' : ''}`}>
+                    {entry.content}
+                  </p>
+                  {isLong && (
+                    <button className="expand-btn" onClick={() => toggleExpanded(entry.id)}>
+                      {isExpanded ? '▲ Show less' : '▼ Show more'}
+                    </button>
+                  )}
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map(tag => (
@@ -221,11 +262,21 @@ function App() {
                       ))}
                     </div>
                   )}
-                  <small className="entry-date">
-                    {new Date(entry.created_at).toLocaleString()}
-                  </small>
+                  <div className="entry-footer">
+                    <small className="entry-date">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </small>
+                    <button
+                      className="delete-btn"
+                      onClick={() => deleteEntry(entry.id)}
+                      title="Delete entry"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </li>
-              ))}
+              )})}
+
               {entries.length === 0 && <li className="no-entries">No entries yet</li>}
             </ul>
           </section>

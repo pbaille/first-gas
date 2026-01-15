@@ -73,8 +73,12 @@ button:disabled {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 250px;
+  grid-template-columns: minmax(0, 1fr) 250px;
   gap: 1.5rem;
+}
+
+.entries-section {
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -99,6 +103,27 @@ button:disabled {
 .entry-content {
   margin: 0 0 0.5rem 0;
   white-space: pre-wrap;
+}
+
+.entry-content.truncated {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.5rem;
+}
+
+.expand-btn:hover {
+  color: #fff;
 }
 
 .entry-tags {
@@ -128,9 +153,32 @@ button:disabled {
   border-color: #3b82f6;
 }
 
+.entry-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .entry-date {
   color: #666;
   font-size: 0.75rem;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+  opacity: 0.5;
+  transition: all 0.15s;
+}
+
+.delete-btn:hover {
+  color: #f44;
+  opacity: 1;
 }
 
 .no-entries,
@@ -142,6 +190,11 @@ button:disabled {
 .tags-section {
   border-left: 1px solid #333;
   padding-left: 1rem;
+  align-self: start;
+  width: 250px;
+  max-width: 250px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
@@ -199,10 +252,11 @@ button:disabled {
 /* Entries Header with Filter Info */
 .entries-header {
   margin-bottom: 0.75rem;
+  min-height: 3.5rem;
 }
 
 .entries-header h2 {
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
 .filter-info {
@@ -213,6 +267,7 @@ button:disabled {
   background: #1a1a2e;
   border-radius: 4px;
   font-size: 0.85rem;
+  margin-top: 0.5rem;
 }
 
 .filter-label {

@@ -12,6 +12,7 @@ function App() {
   const [selectedTag, setSelectedTag] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [expandedEntries, setExpandedEntries] = useState(new Set())
 
   useEffect(() => {
     fetchTags()
@@ -39,6 +40,20 @@ function App() {
   function selectTag(tagName) {
     setSelectedTag(prev => prev === tagName ? null : tagName)
   }
+
+  function toggleExpand(entryId) {
+    setExpandedEntries(prev => {
+      const next = new Set(prev)
+      if (next.has(entryId)) {
+        next.delete(entryId)
+      } else {
+        next.add(entryId)
+      }
+      return next
+    })
+  }
+
+  const TRUNCATE_LENGTH = 200
 
   async function fetchTags() {
     try {
@@ -152,9 +167,20 @@ function App() {
           <section className="entries-section">
             <h2>Entries ({entries.length})</h2>
             <ul className="entries-list">
-              {entries.map(entry => (
+              {entries.map(entry => {
+                const isLong = entry.content.length > TRUNCATE_LENGTH
+                const isExpanded = expandedEntries.has(entry.id)
+                const displayContent = isLong && !isExpanded
+                  ? entry.content.slice(0, TRUNCATE_LENGTH) + '...'
+                  : entry.content
+                return (
                 <li key={entry.id} className="entry-card">
-                  <p className="entry-content">{entry.content}</p>
+                  <p
+                    className={`entry-content ${isLong ? 'expandable' : ''}`}
+                    onClick={isLong ? () => toggleExpand(entry.id) : undefined}
+                  >
+                    {displayContent}
+                  </p>
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map(tag => (
@@ -172,7 +198,8 @@ function App() {
                     {new Date(entry.created_at).toLocaleString()}
                   </small>
                 </li>
-              ))}
+              )})}
+
               {entries.length === 0 && <li className="no-entries">No entries yet</li>}
             </ul>
           </section>

@@ -114,6 +114,14 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+.entry-content.expandable {
+  cursor: pointer;
+}
+
+.entry-content.expandable:hover {
+  color: #4a9eff;
+}
+
 .entry-tags {
   display: flex;
   flex-wrap: wrap;

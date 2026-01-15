@@ -8,6 +8,7 @@ import (
 
 	"github.com/pbaille/kb/internal/api"
 	"github.com/pbaille/kb/internal/classifier"
+	"github.com/pbaille/kb/internal/fetcher"
 	"github.com/pbaille/kb/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -51,11 +52,26 @@ func addCmd() *cobra.Command {
 	var noClassify bool
 
 	cmd := &cobra.Command{
-		Use:   "add [content]",
-		Short: "Add a new entry",
+		Use:   "add [content or URL]",
+		Short: "Add a new entry (supports URLs)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			content := strings.Join(args, " ")
+			input := strings.Join(args, " ")
+
+			// Check if input is a URL
+			var content string
+			if fetcher.IsURL(input) {
+				fmt.Printf("Fetching URL: %s\n", input)
+				text, err := fetcher.Fetch(input)
+				if err != nil {
+					return fmt.Errorf("fetch URL: %w", err)
+				}
+				// Store URL + extracted text
+				content = fmt.Sprintf("[Source: %s]\n\n%s", input, text)
+				fmt.Printf("Extracted %d chars of text\n", len(text))
+			} else {
+				content = input
+			}
 
 			s, err := getStore()
 			if err != nil {

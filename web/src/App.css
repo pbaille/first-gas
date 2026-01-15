@@ -145,9 +145,31 @@ button:disabled {
   color: #000;
 }
 
+.entry-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .entry-date {
   color: #666;
   font-size: 0.75rem;
+}
+
+.delete-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid #666;
+  color: #666;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.delete-btn:hover {
+  background: #f44;
+  border-color: #f44;
+  color: #fff;
 }
 
 .no-entries,

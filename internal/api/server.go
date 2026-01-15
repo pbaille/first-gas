@@ -31,6 +31,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("GET /entries", s.listEntries)
 	mux.HandleFunc("POST /entries", s.addEntry)
 	mux.HandleFunc("GET /entries/{id}", s.getEntry)
+	mux.HandleFunc("DELETE /entries/{id}", s.deleteEntry)
 
 	// Tags
 	mux.HandleFunc("GET /tags", s.listTags)
@@ -52,7 +53,7 @@ func (s *Server) Run() error {
 func withCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
@@ -183,6 +184,22 @@ func (s *Server) getEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, entry)
+}
+
+func (s *Server) deleteEntry(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	err := s.store.DeleteEntry(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, "entry not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted", "id": id})
 }
 
 func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {

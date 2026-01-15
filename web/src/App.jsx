@@ -83,6 +83,20 @@ function App() {
     }
   }
 
+  async function deleteEntry(id) {
+    if (!window.confirm('Are you sure you want to delete this entry?')) {
+      return
+    }
+    try {
+      const res = await fetch(`${API}/entries/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete entry')
+      fetchEntries()
+      fetchSuggestions()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   function TagTree({ nodes }) {
     if (!nodes || nodes.length === 0) return null
     return (
@@ -168,9 +182,17 @@ function App() {
                       ))}
                     </div>
                   )}
-                  <small className="entry-date">
-                    {new Date(entry.created_at).toLocaleString()}
-                  </small>
+                  <div className="entry-footer">
+                    <small className="entry-date">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </small>
+                    <button
+                      className="delete-btn"
+                      onClick={() => deleteEntry(entry.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
               {entries.length === 0 && <li className="no-entries">No entries yet</li>}

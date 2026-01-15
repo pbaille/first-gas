@@ -59,6 +59,24 @@ func (s *Store) AddEntry(content string) (*domain.Entry, error) {
 	}, nil
 }
 
+// DeleteEntry removes an entry by ID
+func (s *Store) DeleteEntry(id string) error {
+	result, err := s.db.Exec("DELETE FROM entries WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check delete result: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("entry not found")
+	}
+
+	return nil
+}
+
 // GetEntry retrieves an entry by ID with its tags
 func (s *Store) GetEntry(id string) (*domain.Entry, error) {
 	var entry domain.Entry

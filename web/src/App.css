@@ -43,7 +43,7 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-.search-section form {
+.search-controls {
   display: flex;
   gap: 0.5rem;
 }
@@ -52,6 +52,19 @@ h2 {
   flex: 1;
   padding: 0.5rem;
   font-size: 0.9rem;
+}
+
+.active-filter {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.active-filter button {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
 }
 
 button {
@@ -113,6 +126,23 @@ button:disabled {
   padding: 0.15rem 0.4rem;
   border-radius: 3px;
   font-size: 0.75rem;
+}
+
+.tag.clickable,
+.tag-name.clickable {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tag.clickable:hover,
+.tag-name.clickable:hover {
+  background: #555;
+}
+
+.tag.selected,
+.tag-name.selected {
+  background: #4a9eff;
+  color: #000;
 }
 
 .entry-date {

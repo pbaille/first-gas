@@ -8,22 +8,34 @@ function App() {
   const [tags, setTags] = useState([])
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedTag, setSelectedTag] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchEntries()
     fetchTags()
   }, [])
 
+  useEffect(() => {
+    fetchEntries()
+  }, [search, selectedTag])
+
   async function fetchEntries() {
     try {
-      const res = await fetch(`${API}/entries`)
+      const params = new URLSearchParams()
+      if (search.trim()) params.set('q', search)
+      if (selectedTag) params.set('tag', selectedTag)
+      const url = params.toString() ? `${API}/entries?${params}` : `${API}/entries`
+      const res = await fetch(url)
       const data = await res.json()
       setEntries(data.entries || [])
     } catch (err) {
       setError('Failed to fetch entries')
     }
+  }
+
+  function selectTag(tagName) {
+    setSelectedTag(prev => prev === tagName ? null : tagName)
   }
 
   async function fetchTags() {
@@ -59,28 +71,18 @@ function App() {
     }
   }
 
-  async function searchEntries(e) {
-    e.preventDefault()
-    if (!search.trim()) {
-      fetchEntries()
-      return
-    }
-    try {
-      const res = await fetch(`${API}/search?q=${encodeURIComponent(search)}`)
-      const data = await res.json()
-      setEntries(data.entries || [])
-    } catch (err) {
-      setError('Search failed')
-    }
-  }
-
   function TagTree({ nodes }) {
     if (!nodes || nodes.length === 0) return null
     return (
       <ul className="tag-tree">
         {nodes.map(node => (
           <li key={node.id}>
-            <span className="tag-name">{node.name}</span>
+            <span
+              className={`tag-name clickable ${selectedTag === node.name ? 'selected' : ''}`}
+              onClick={() => selectTag(node.name)}
+            >
+              {node.name}
+            </span>
             {node.children && <TagTree nodes={node.children} />}
           </li>
         ))}
@@ -113,18 +115,25 @@ function App() {
 
         <section className="search-section">
           <h2>Search</h2>
-          <form onSubmit={searchEntries}>
+          <div className="search-controls">
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search entries..."
             />
-            <button type="submit">Search</button>
-            <button type="button" onClick={() => { setSearch(''); fetchEntries(); }}>
-              Clear
-            </button>
-          </form>
+            {(search || selectedTag) && (
+              <button type="button" onClick={() => { setSearch(''); setSelectedTag(null); }}>
+                Clear
+              </button>
+            )}
+          </div>
+          {selectedTag && (
+            <div className="active-filter">
+              Filtering by: <span className="tag selected">{selectedTag}</span>
+              <button onClick={() => setSelectedTag(null)}>×</button>
+            </div>
+          )}
         </section>
 
         <div className="content-grid">
@@ -137,7 +146,13 @@ function App() {
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map(tag => (
-                        <span key={tag.id} className="tag">{tag.name}</span>
+                        <span
+                          key={tag.id}
+                          className={`tag clickable ${selectedTag === tag.name ? 'selected' : ''}`}
+                          onClick={() => selectTag(tag.name)}
+                        >
+                          {tag.name}
+                        </span>
                       ))}
                     </div>
                   )}

@@ -185,6 +185,8 @@ func (s *Server) getEntry(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 	limit := 20
 	offset := 0
+	query := r.URL.Query().Get("q")
+	tagFilter := r.URL.Query().Get("tag")
 
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if n, err := strconv.Atoi(l); err == nil && n > 0 {
@@ -197,16 +199,44 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := s.store.ListEntries(limit, offset)
+	var entries []domain.Entry
+	var err error
+
+	if query != "" {
+		entries, err = s.store.SearchEntries(query)
+	} else {
+		entries, err = s.store.ListEntries(limit, offset)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	// Filter by tag if specified
+	if tagFilter != "" {
+		var filtered []domain.Entry
+		for _, e := range entries {
+			// Need to load tags for each entry
+			entry, err := s.store.GetEntry(e.ID)
+			if err != nil {
+				continue
+			}
+			for _, t := range entry.Tags {
+				if t.Name == tagFilter {
+					filtered = append(filtered, *entry)
+					break
+				}
+			}
+		}
+		entries = filtered
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"entries": entries,
 		"limit":   limit,
 		"offset":  offset,
+		"query":   query,
+		"tag":     tagFilter,
 	})
 }
 

@@ -260,12 +260,37 @@ button:disabled {
 
 .tag-tree {
   list-style: none;
-  padding-left: 1rem;
+  padding-left: 0.75rem;
   margin: 0;
 }
 
 .tag-tree > li {
   margin-bottom: 0.25rem;
+}
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tag-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: #888;
+  width: 1rem;
+  text-align: center;
+}
+
+.tag-toggle:hover {
+  color: #fff;
+}
+
+.tag-toggle-spacer {
+  width: 1rem;
 }
 
 .tag-name {

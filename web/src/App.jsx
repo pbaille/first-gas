@@ -12,6 +12,10 @@ function App() {
   const [selectedTag, setSelectedTag] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [expandedTags, setExpandedTags] = useState(() => {
+    const saved = localStorage.getItem('kb-expanded-tags')
+    return saved ? JSON.parse(saved) : {}
+  })
 
   useEffect(() => {
     fetchTags()
@@ -38,6 +42,14 @@ function App() {
 
   function selectTag(tagName) {
     setSelectedTag(prev => prev === tagName ? null : tagName)
+  }
+
+  function toggleTagExpand(tagId) {
+    setExpandedTags(prev => {
+      const next = { ...prev, [tagId]: !prev[tagId] }
+      localStorage.setItem('kb-expanded-tags', JSON.stringify(next))
+      return next
+    })
   }
 
   async function fetchTags() {
@@ -109,17 +121,34 @@ function App() {
     if (!nodes || nodes.length === 0) return null
     return (
       <ul className="tag-tree">
-        {nodes.map(node => (
-          <li key={node.id}>
-            <span
-              className={`tag-name clickable ${selectedTag === node.name ? 'selected' : ''}`}
-              onClick={() => selectTag(node.name)}
-            >
-              {node.name}
-            </span>
-            {node.children && <TagTree nodes={node.children} />}
-          </li>
-        ))}
+        {nodes.map(node => {
+          const hasChildren = node.children && node.children.length > 0
+          const isExpanded = expandedTags[node.id]
+          return (
+            <li key={node.id}>
+              <div className="tag-row">
+                {hasChildren ? (
+                  <button
+                    className="tag-toggle"
+                    onClick={() => toggleTagExpand(node.id)}
+                    aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                  >
+                    {isExpanded ? '▼' : '▶'}
+                  </button>
+                ) : (
+                  <span className="tag-toggle-spacer" />
+                )}
+                <span
+                  className={`tag-name clickable ${selectedTag === node.name ? 'selected' : ''}`}
+                  onClick={() => selectTag(node.name)}
+                >
+                  {node.name}
+                </span>
+              </div>
+              {hasChildren && isExpanded && <TagTree nodes={node.children} />}
+            </li>
+          )
+        })}
       </ul>
     )
   }

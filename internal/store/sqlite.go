@@ -61,13 +61,31 @@ func (s *Store) AddEntry(content string) (*domain.Entry, error) {
 	}, nil
 }
 
+// DeleteEntry removes an entry by ID
+func (s *Store) DeleteEntry(id string) error {
+	result, err := s.db.Exec("DELETE FROM entries WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check delete result: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("entry not found")
+	}
+
+	return nil
+}
+
 // GetEntry retrieves an entry by ID with its tags
 func (s *Store) GetEntry(id string) (*domain.Entry, error) {
 	var entry domain.Entry
 	err := s.db.QueryRow(
-		"SELECT id, content, created_at FROM entries WHERE id = ?",
+		"SELECT id, content, created_at, last_viewed_at FROM entries WHERE id = ?",
 		id,
-	).Scan(&entry.ID, &entry.Content, &entry.CreatedAt)
+	).Scan(&entry.ID, &entry.Content, &entry.CreatedAt, &entry.LastViewedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get entry: %w", err)
 	}
@@ -85,7 +103,7 @@ func (s *Store) GetEntry(id string) (*domain.Entry, error) {
 // ListEntries returns recent entries with pagination
 func (s *Store) ListEntries(limit, offset int) ([]domain.Entry, error) {
 	rows, err := s.db.Query(
-		"SELECT id, content, created_at FROM entries ORDER BY created_at DESC LIMIT ? OFFSET ?",
+		"SELECT id, content, created_at, last_viewed_at FROM entries ORDER BY created_at DESC LIMIT ? OFFSET ?",
 		limit, offset,
 	)
 	if err != nil {
@@ -96,7 +114,7 @@ func (s *Store) ListEntries(limit, offset int) ([]domain.Entry, error) {
 	var entries []domain.Entry
 	for rows.Next() {
 		var e domain.Entry
-		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, e)
@@ -220,11 +238,11 @@ func (s *Store) GetEntriesByTag(tagID string, includeChildren bool) ([]domain.En
 		// Recursive CTE to get tag and all descendants
 		query = `
 			WITH RECURSIVE tag_tree AS (
-				SELECT id FROM tags WHERE id = ?
+				SELECT id FROM tags WHERE id = ? OR name = ?
 				UNION ALL
 				SELECT t.id FROM tags t JOIN tag_tree tt ON t.parent_id = tt.id
 			)
-			SELECT DISTINCT e.id, e.content, e.created_at
+			SELECT DISTINCT e.id, e.content, e.created_at, e.last_viewed_at
 			FROM entries e
 			JOIN entry_tags et ON e.id = et.entry_id
 			JOIN tag_tree tt ON et.tag_id = tt.id
@@ -232,15 +250,15 @@ func (s *Store) GetEntriesByTag(tagID string, includeChildren bool) ([]domain.En
 		`
 	} else {
 		query = `
-			SELECT e.id, e.content, e.created_at
+			SELECT e.id, e.content, e.created_at, e.last_viewed_at
 			FROM entries e
 			JOIN entry_tags et ON e.id = et.entry_id
-			WHERE et.tag_id = ?
+			WHERE et.tag_id = ? OR et.tag_id IN (SELECT id FROM tags WHERE name = ?)
 			ORDER BY e.created_at DESC
 		`
 	}
 
-	rows, err := s.db.Query(query, tagID)
+	rows, err := s.db.Query(query, tagID, tagID)
 	if err != nil {
 		return nil, fmt.Errorf("get entries by tag: %w", err)
 	}
@@ -249,19 +267,71 @@ func (s *Store) GetEntriesByTag(tagID string, includeChildren bool) ([]domain.En
 	var entries []domain.Entry
 	for rows.Next() {
 		var e domain.Entry
-		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, e)
 	}
+	return entries, nil
+}
 
+// FindSimilarByTags finds entries sharing tags with the given entry, excluding the entry itself
+func (s *Store) FindSimilarByTags(entryID string, limit int) ([]domain.Entry, error) {
+	rows, err := s.db.Query(`
+		SELECT DISTINCT e.id, e.content, e.created_at, e.last_viewed_at
+		FROM entries e
+		JOIN entry_tags et ON e.id = et.entry_id
+		WHERE et.tag_id IN (
+			SELECT tag_id FROM entry_tags WHERE entry_id = ?
+		)
+		AND e.id != ?
+		ORDER BY e.last_viewed_at ASC NULLS FIRST, e.created_at DESC
+		LIMIT ?
+	`, entryID, entryID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("find similar: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// GetSuggestions returns entries the user hasn't viewed recently
+func (s *Store) GetSuggestions(limit int) ([]domain.Entry, error) {
+	rows, err := s.db.Query(`
+		SELECT id, content, created_at, last_viewed_at
+		FROM entries
+		ORDER BY last_viewed_at ASC NULLS FIRST, created_at DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get suggestions: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
 	return entries, nil
 }
 
 // SearchEntries performs a simple text search
 func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	rows, err := s.db.Query(
-		"SELECT id, content, created_at FROM entries WHERE content LIKE ? ORDER BY created_at DESC",
+		"SELECT id, content, created_at, last_viewed_at FROM entries WHERE content LIKE ? ORDER BY created_at DESC",
 		"%"+query+"%",
 	)
 	if err != nil {
@@ -272,7 +342,7 @@ func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	var entries []domain.Entry
 	for rows.Next() {
 		var e domain.Entry
-		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, e)

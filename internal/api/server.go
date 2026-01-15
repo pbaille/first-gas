@@ -40,6 +40,9 @@ func (s *Server) Run() error {
 	// Search
 	mux.HandleFunc("GET /search", s.searchEntries)
 
+	// Suggestions
+	mux.HandleFunc("GET /suggestions", s.getSuggestions)
+
 	// Health check
 	mux.HandleFunc("GET /health", s.health)
 
@@ -199,14 +202,10 @@ func (s *Server) getEntry(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteEntry(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if id == "" {
-		writeError(w, http.StatusBadRequest, "entry id is required")
-		return
-	}
 
 	err := s.store.DeleteEntry(id)
 	if err != nil {
-		if err.Error() == "entry not found" {
+		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, "entry not found")
 		} else {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -220,6 +219,8 @@ func (s *Server) deleteEntry(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 	limit := 20
 	offset := 0
+	query := r.URL.Query().Get("q")
+	tagFilter := r.URL.Query().Get("tag")
 
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if n, err := strconv.Atoi(l); err == nil && n > 0 {
@@ -232,19 +233,18 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Filter by tag if specified
-	tagID := r.URL.Query().Get("tag")
 	includeChildren := r.URL.Query().Get("include_children") != "false"
 
 	var entries []domain.Entry
 	var err error
 
-	if tagID != "" {
-		entries, err = s.store.GetEntriesByTag(tagID, includeChildren)
+	if query != "" {
+		entries, err = s.store.SearchEntries(query)
+	} else if tagFilter != "" {
+		entries, err = s.store.GetEntriesByTag(tagFilter, includeChildren)
 	} else {
 		entries, err = s.store.ListEntries(limit, offset)
 	}
-
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -260,7 +260,8 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		"entries": entries,
 		"limit":   limit,
 		"offset":  offset,
-		"tag":     tagID,
+		"query":   query,
+		"tag":     tagFilter,
 	})
 }
 
@@ -329,6 +330,45 @@ func (s *Server) searchEntries(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"entries": entries,
 		"query":   query,
+	})
+}
+
+func (s *Server) getSuggestions(w http.ResponseWriter, r *http.Request) {
+	limit := 10
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	// If entry_id provided, find similar entries
+	entryID := r.URL.Query().Get("entry_id")
+	var entries []domain.Entry
+	var err error
+
+	if entryID != "" {
+		entries, err = s.store.FindSimilar(entryID, limit)
+	} else {
+		entries, err = s.store.GetSuggestions(limit)
+	}
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Load tags for each entry
+	for i := range entries {
+		tags, err := s.store.GetEntryTags(entries[i].ID)
+		if err == nil {
+			entries[i].Tags = tags
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"suggestions": entries,
+		"limit":       limit,
+		"entry_id":    entryID,
 	})
 }
 

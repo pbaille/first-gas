@@ -7,24 +7,33 @@ function App() {
   const [entries, setEntries] = useState([])
   const [tags, setTags] = useState([])
   const [flatTags, setFlatTags] = useState([])
+  const [suggestions, setSuggestions] = useState([])
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedTag, setSelectedTag] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [selectedTag, setSelectedTag] = useState(null)
-  const [breadcrumb, setBreadcrumb] = useState([])
+  const [expandedTags, setExpandedTags] = useState(() => {
+    const saved = localStorage.getItem('kb-expanded-tags')
+    return saved ? JSON.parse(saved) : {}
+  })
   const [expandedEntries, setExpandedEntries] = useState(new Set())
 
   useEffect(() => {
-    fetchEntries()
     fetchTags()
+    fetchSuggestions()
   }, [])
 
-  async function fetchEntries(tagId = null) {
+  useEffect(() => {
+    fetchEntries()
+  }, [search, selectedTag])
+
+  async function fetchEntries() {
     try {
-      const url = tagId
-        ? `${API}/entries?tag=${tagId}`
-        : `${API}/entries`
+      const params = new URLSearchParams()
+      if (search.trim()) params.set('q', search)
+      if (selectedTag) params.set('tag', selectedTag)
+      const url = params.toString() ? `${API}/entries?${params}` : `${API}/entries`
       const res = await fetch(url)
       const data = await res.json()
       setEntries(data.entries || [])
@@ -32,6 +41,32 @@ function App() {
       setError('Failed to fetch entries')
     }
   }
+
+  function selectTag(tagName) {
+    setSelectedTag(prev => prev === tagName ? null : tagName)
+  }
+
+  function toggleTagExpand(tagId) {
+    setExpandedTags(prev => {
+      const next = { ...prev, [tagId]: !prev[tagId] }
+      localStorage.setItem('kb-expanded-tags', JSON.stringify(next))
+      return next
+    })
+  }
+
+  function toggleExpand(entryId) {
+    setExpandedEntries(prev => {
+      const next = new Set(prev)
+      if (next.has(entryId)) {
+        next.delete(entryId)
+      } else {
+        next.add(entryId)
+      }
+      return next
+    })
+  }
+
+  const TRUNCATE_LENGTH = 200
 
   async function fetchTags() {
     try {
@@ -44,8 +79,18 @@ function App() {
     }
   }
 
+  async function fetchSuggestions() {
+    try {
+      const res = await fetch(`${API}/suggestions?limit=5`)
+      const data = await res.json()
+      setSuggestions(data.suggestions || [])
+    } catch (err) {
+      console.error('Failed to fetch suggestions')
+    }
+  }
+
   async function addEntry(e) {
-    e.preventDefault()
+    if (e) e.preventDefault()
     if (!content.trim()) return
 
     setLoading(true)
@@ -58,8 +103,9 @@ function App() {
       })
       if (!res.ok) throw new Error('Failed to add entry')
       setContent('')
-      fetchEntries(selectedTag?.id)
+      fetchEntries()
       fetchTags()
+      fetchSuggestions()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -67,104 +113,59 @@ function App() {
     }
   }
 
-  async function searchEntries(e) {
-    e.preventDefault()
-    if (!search.trim()) {
-      fetchEntries(selectedTag?.id)
+  async function deleteEntry(id) {
+    if (!window.confirm('Are you sure you want to delete this entry?')) {
       return
     }
     try {
-      const res = await fetch(`${API}/search?q=${encodeURIComponent(search)}`)
-      const data = await res.json()
-      setEntries(data.entries || [])
-    } catch (err) {
-      setError('Search failed')
-    }
-  }
-
-  async function deleteEntry(id) {
-    if (!confirm('Delete this entry?')) return
-    try {
       const res = await fetch(`${API}/entries/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete')
-      fetchEntries(selectedTag?.id)
-      fetchTags()
-    } catch (err) {
-      setError('Delete failed')
-    }
-  }
-
-  function buildBreadcrumb(tagId) {
-    const path = []
-    let currentId = tagId
-    while (currentId) {
-      const tag = flatTags.find(t => t.id === currentId)
-      if (tag) {
-        path.unshift(tag)
-        currentId = tag.parent_id
-      } else {
-        break
-      }
-    }
-    return path
-  }
-
-  function selectTag(tag) {
-    if (selectedTag?.id === tag.id) {
-      // Deselect
-      setSelectedTag(null)
-      setBreadcrumb([])
+      if (!res.ok) throw new Error('Failed to delete entry')
       fetchEntries()
-    } else {
-      setSelectedTag(tag)
-      setBreadcrumb(buildBreadcrumb(tag.id))
-      fetchEntries(tag.id)
+      fetchSuggestions()
+    } catch (err) {
+      setError(err.message)
     }
-    setSearch('')
   }
 
-  function clearTagFilter() {
-    setSelectedTag(null)
-    setBreadcrumb([])
-    fetchEntries()
+  function handleKeyDown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      addEntry()
+    }
   }
 
-  function toggleExpanded(entryId) {
-    setExpandedEntries(prev => {
-      const next = new Set(prev)
-      if (next.has(entryId)) {
-        next.delete(entryId)
-      } else {
-        next.add(entryId)
-      }
-      return next
-    })
-  }
-
-  function isLongContent(content) {
-    // Consider content "long" if it has more than 4 lines or 300+ chars
-    const lineCount = (content.match(/\n/g) || []).length + 1
-    return lineCount > 4 || content.length > 300
-  }
-
-  function TagTree({ nodes, level = 0 }) {
+  function TagTree({ nodes }) {
     if (!nodes || nodes.length === 0) return null
     return (
-      <ul className="tag-tree" style={{ paddingLeft: level > 0 ? '1rem' : 0 }}>
-        {nodes.map(node => (
-          <li key={node.id}>
-            <button
-              className={`tag-btn ${selectedTag?.id === node.id ? 'selected' : ''}`}
-              onClick={() => selectTag(node)}
-            >
-              {node.name}
-              {node.children && node.children.length > 0 && (
-                <span className="child-count">({node.children.length})</span>
-              )}
-            </button>
-            {node.children && <TagTree nodes={node.children} level={level + 1} />}
-          </li>
-        ))}
+      <ul className="tag-tree">
+        {nodes.map(node => {
+          const hasChildren = node.children && node.children.length > 0
+          const isExpanded = expandedTags[node.id]
+          return (
+            <li key={node.id}>
+              <div className="tag-row">
+                {hasChildren ? (
+                  <button
+                    className="tag-toggle"
+                    onClick={() => toggleTagExpand(node.id)}
+                    aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                  >
+                    {isExpanded ? '▼' : '▶'}
+                  </button>
+                ) : (
+                  <span className="tag-toggle-spacer" />
+                )}
+                <span
+                  className={`tag-name clickable ${selectedTag === node.name ? 'selected' : ''}`}
+                  onClick={() => selectTag(node.name)}
+                >
+                  {node.name}
+                </span>
+              </div>
+              {hasChildren && isExpanded && <TagTree nodes={node.children} />}
+            </li>
+          )
+        })}
       </ul>
     )
   }
@@ -176,89 +177,69 @@ function App() {
       </header>
 
       <main>
-        <section className="add-section">
-          <h2>Add Entry</h2>
+        <section className="add-section hero">
           <form onSubmit={addEntry}>
             <textarea
+              className="hero-input"
               value={content}
               onChange={e => setContent(e.target.value)}
-              placeholder="Enter your content..."
-              rows={4}
+              onKeyDown={handleKeyDown}
+              placeholder="What's on your mind? (⌘+Enter to save)"
+              rows={3}
+              autoFocus
             />
-            <button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Entry'}
+            <button type="submit" className="subtle-btn" disabled={loading}>
+              {loading ? '...' : 'Save'}
             </button>
           </form>
           {error && <p className="error">{error}</p>}
-        </section>
-
-        <section className="search-section">
-          <h2>Search</h2>
-          <form onSubmit={searchEntries}>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search entries..."
-            />
-            <button type="submit">Search</button>
-            <button type="button" onClick={() => { setSearch(''); fetchEntries(selectedTag?.id); }}>
-              Clear
-            </button>
-          </form>
         </section>
 
         <div className="content-grid">
           <section className="entries-section">
             <div className="entries-header">
               <h2>Entries ({entries.length})</h2>
-              {selectedTag && (
-                <div className="filter-info">
-                  <span className="filter-label">Filtered by:</span>
-                  <nav className="breadcrumb">
-                    <button className="breadcrumb-item root" onClick={clearTagFilter}>
-                      All
-                    </button>
-                    {breadcrumb.map((tag, idx) => (
-                      <span key={tag.id}>
-                        <span className="breadcrumb-sep">›</span>
-                        <button
-                          className={`breadcrumb-item ${idx === breadcrumb.length - 1 ? 'current' : ''}`}
-                          onClick={() => selectTag(tag)}
-                        >
-                          {tag.name}
-                        </button>
-                      </span>
-                    ))}
-                  </nav>
-                  <button className="clear-filter" onClick={clearTagFilter}>×</button>
-                </div>
-              )}
+              <div className="search-controls">
+                <input
+                  type="text"
+                  className="search-input"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search..."
+                />
+                {selectedTag && (
+                  <div className="active-filter">
+                    <span className="tag selected">{selectedTag}</span>
+                    <button onClick={() => setSelectedTag(null)}>×</button>
+                  </div>
+                )}
+              </div>
             </div>
             <ul className="entries-list">
               {entries.map(entry => {
+                const isLong = entry.content.length > TRUNCATE_LENGTH
                 const isExpanded = expandedEntries.has(entry.id)
-                const isLong = isLongContent(entry.content)
+                const displayContent = isLong && !isExpanded
+                  ? entry.content.slice(0, TRUNCATE_LENGTH) + '...'
+                  : entry.content
                 return (
                 <li key={entry.id} className="entry-card">
-                  <p className={`entry-content ${isLong && !isExpanded ? 'truncated' : ''}`}>
-                    {entry.content}
+                  <p
+                    className={`entry-content ${isLong ? 'expandable' : ''}`}
+                    onClick={isLong ? () => toggleExpand(entry.id) : undefined}
+                  >
+                    {displayContent}
                   </p>
-                  {isLong && (
-                    <button className="expand-btn" onClick={() => toggleExpanded(entry.id)}>
-                      {isExpanded ? '▲ Show less' : '▼ Show more'}
-                    </button>
-                  )}
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map(tag => (
-                        <button
+                        <span
                           key={tag.id}
-                          className={`tag ${selectedTag?.id === tag.id ? 'selected' : ''}`}
-                          onClick={() => selectTag(tag)}
+                          className={`tag clickable ${selectedTag === tag.name ? 'selected' : ''}`}
+                          onClick={() => selectTag(tag.name)}
                         >
                           {tag.name}
-                        </button>
+                        </span>
                       ))}
                     </div>
                   )}
@@ -269,9 +250,8 @@ function App() {
                     <button
                       className="delete-btn"
                       onClick={() => deleteEntry(entry.id)}
-                      title="Delete entry"
                     >
-                      ×
+                      Delete
                     </button>
                   </div>
                 </li>
@@ -281,15 +261,40 @@ function App() {
             </ul>
           </section>
 
-          <aside className="tags-section">
-            <h2>Tags</h2>
-            {selectedTag && (
-              <button className="show-all-btn" onClick={clearTagFilter}>
-                ← Show All Entries
-              </button>
-            )}
-            <TagTree nodes={tags} />
-            {tags.length === 0 && <p className="no-tags">No tags yet</p>}
+          <aside className="sidebar">
+            <section className="tags-section">
+              <h2>Tags</h2>
+              <TagTree nodes={tags} />
+              {tags.length === 0 && <p className="no-tags">No tags yet</p>}
+            </section>
+
+            <section className="suggestions-section">
+              <h2>Suggestions</h2>
+              {suggestions.length > 0 ? (
+                <ul className="suggestions-list">
+                  {suggestions.map(entry => (
+                    <li key={entry.id} className="suggestion-card">
+                      <p className="suggestion-content">{entry.content.slice(0, 100)}{entry.content.length > 100 ? '...' : ''}</p>
+                      {entry.tags && entry.tags.length > 0 && (
+                        <div className="entry-tags">
+                          {entry.tags.map(tag => (
+                            <span
+                              key={tag.id}
+                              className={`tag clickable ${selectedTag === tag.name ? 'selected' : ''}`}
+                              onClick={() => selectTag(tag.name)}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-suggestions">No suggestions yet</p>
+              )}
+            </section>
           </aside>
         </div>
       </main>

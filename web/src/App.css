@@ -25,33 +25,95 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
+.add-section.hero {
+  margin-bottom: 2rem;
+}
+
 .add-section form {
   display: flex;
   gap: 0.5rem;
+  align-items: flex-end;
 }
 
-.add-section textarea {
+.hero-input {
   flex: 1;
-  padding: 0.5rem;
+  padding: 1rem;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   resize: vertical;
-  min-height: 60px;
+  min-height: 80px;
+  border: 2px solid #444;
+  border-radius: 8px;
+  background: #1a1a1a;
+  color: inherit;
 }
 
-.search-section {
-  margin-bottom: 1.5rem;
+.hero-input:focus {
+  outline: none;
+  border-color: #4a9eff;
 }
 
-.search-section form {
+.hero-input::placeholder {
+  color: #666;
+}
+
+.subtle-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.subtle-btn:hover:not(:disabled) {
+  border-color: #666;
+  color: #ccc;
+}
+
+.entries-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.entries-header h2 {
+  margin: 0;
+}
+
+.search-controls {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.search-section input {
-  flex: 1;
-  padding: 0.5rem;
-  font-size: 0.9rem;
+.search-input {
+  width: 160px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid #444;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #666;
+}
+
+.active-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.active-filter button {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.75rem;
 }
 
 button {
@@ -105,25 +167,12 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-.entry-content.truncated {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.expand-btn {
-  background: transparent;
-  border: none;
-  color: #888;
-  font-size: 0.75rem;
+.entry-content.expandable {
   cursor: pointer;
-  padding: 0;
-  margin-bottom: 0.5rem;
 }
 
-.expand-btn:hover {
-  color: #fff;
+.entry-content.expandable:hover {
+  color: #4a9eff;
 }
 
 .entry-tags {
@@ -153,6 +202,23 @@ button:disabled {
   border-color: #3b82f6;
 }
 
+.tag.clickable,
+.tag-name.clickable {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tag.clickable:hover,
+.tag-name.clickable:hover {
+  background: #555;
+}
+
+.tag.selected,
+.tag-name.selected {
+  background: #4a9eff;
+  color: #000;
+}
+
 .entry-footer {
   display: flex;
   justify-content: space-between;
@@ -165,29 +231,29 @@ button:disabled {
 }
 
 .delete-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
   background: transparent;
-  border: none;
+  border: 1px solid #666;
   color: #666;
-  font-size: 1rem;
   cursor: pointer;
-  padding: 0 0.25rem;
-  line-height: 1;
-  opacity: 0.5;
-  transition: all 0.15s;
+  border-radius: 3px;
 }
 
 .delete-btn:hover {
-  color: #f44;
-  opacity: 1;
+  background: #f44;
+  border-color: #f44;
+  color: #fff;
 }
 
 .no-entries,
-.no-tags {
+.no-tags,
+.no-suggestions {
   color: #666;
   font-style: italic;
 }
 
-.tags-section {
+.sidebar {
   border-left: 1px solid #333;
   padding-left: 1rem;
   align-self: start;
@@ -198,7 +264,7 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
-  .tags-section {
+  .sidebar {
     border-left: none;
     border-top: 1px solid #333;
     padding-left: 0;
@@ -206,14 +272,68 @@ button:disabled {
   }
 }
 
+.tags-section {
+  margin-bottom: 1.5rem;
+}
+
+.suggestions-section {
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+}
+
+.suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestion-card {
+  padding: 0.5rem;
+  border: 1px solid #444;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  background: #1a1a1a;
+}
+
+.suggestion-content {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
 .tag-tree {
   list-style: none;
-  padding-left: 1rem;
+  padding-left: 0.75rem;
   margin: 0;
 }
 
 .tag-tree > li {
   margin-bottom: 0.25rem;
+}
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tag-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: #888;
+  width: 1rem;
+  text-align: center;
+}
+
+.tag-toggle:hover {
+  color: #fff;
+}
+
+.tag-toggle-spacer {
+  width: 1rem;
 }
 
 .tag-name {

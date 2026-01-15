@@ -20,7 +20,7 @@ describe('App', () => {
 
   it('renders the add entry textarea', () => {
     render(<App />)
-    expect(screen.getByPlaceholderText(/enter your content/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/what's on your mind/i)).toBeInTheDocument()
   })
 
   it('renders the search input', () => {

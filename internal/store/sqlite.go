@@ -198,6 +198,27 @@ func (s *Store) ListTags() ([]domain.Tag, error) {
 	return tags, nil
 }
 
+// UpdateEntryViewedAt sets last_viewed_at to current time
+func (s *Store) UpdateEntryViewedAt(id string) error {
+	result, err := s.db.Exec(
+		"UPDATE entries SET last_viewed_at = ? WHERE id = ?",
+		time.Now(), id,
+	)
+	if err != nil {
+		return fmt.Errorf("update entry viewed_at: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("entry not found")
+	}
+
+	return nil
+}
+
 // SearchEntries performs a simple text search
 func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	rows, err := s.db.Query(

@@ -31,6 +31,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("GET /entries", s.listEntries)
 	mux.HandleFunc("POST /entries", s.addEntry)
 	mux.HandleFunc("GET /entries/{id}", s.getEntry)
+	mux.HandleFunc("PATCH /entries/{id}/view", s.markEntryViewed)
 
 	// Tags
 	mux.HandleFunc("GET /tags", s.listTags)
@@ -49,7 +50,7 @@ func (s *Server) Run() error {
 func withCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
@@ -170,6 +171,43 @@ func (s *Server) getEntry(w http.ResponseWriter, r *http.Request) {
 
 	if fullID == "" {
 		writeError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+
+	entry, err := s.store.GetEntry(fullID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, entry)
+}
+
+func (s *Server) markEntryViewed(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	// Support prefix matching
+	entries, err := s.store.ListEntries(100, 0)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var fullID string
+	for _, e := range entries {
+		if strings.HasPrefix(e.ID, id) {
+			fullID = e.ID
+			break
+		}
+	}
+
+	if fullID == "" {
+		writeError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+
+	if err := s.store.UpdateEntryViewedAt(fullID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

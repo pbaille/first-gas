@@ -6,6 +6,7 @@ const API = 'http://localhost:8080'
 function App() {
   const [entries, setEntries] = useState([])
   const [tags, setTags] = useState([])
+  const [flatTags, setFlatTags] = useState([])
   const [suggestions, setSuggestions] = useState([])
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
@@ -57,6 +58,7 @@ function App() {
       const res = await fetch(`${API}/tags`)
       const data = await res.json()
       setTags(data.tags || [])
+      setFlatTags(data.flat || [])
     } catch (err) {
       console.error('Failed to fetch tags')
     }

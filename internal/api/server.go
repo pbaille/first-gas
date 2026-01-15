@@ -233,11 +233,15 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	includeChildren := r.URL.Query().Get("include_children") != "false"
+
 	var entries []domain.Entry
 	var err error
 
 	if query != "" {
 		entries, err = s.store.SearchEntries(query)
+	} else if tagFilter != "" {
+		entries, err = s.store.GetEntriesByTag(tagFilter, includeChildren)
 	} else {
 		entries, err = s.store.ListEntries(limit, offset)
 	}
@@ -246,23 +250,10 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter by tag if specified
-	if tagFilter != "" {
-		var filtered []domain.Entry
-		for _, e := range entries {
-			// Need to load tags for each entry
-			entry, err := s.store.GetEntry(e.ID)
-			if err != nil {
-				continue
-			}
-			for _, t := range entry.Tags {
-				if t.Name == tagFilter {
-					filtered = append(filtered, *entry)
-					break
-				}
-			}
-		}
-		entries = filtered
+	// Load tags for each entry
+	for i := range entries {
+		tags, _ := s.store.GetEntryTags(entries[i].ID)
+		entries[i].Tags = tags
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{

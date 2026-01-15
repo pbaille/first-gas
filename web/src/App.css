@@ -175,6 +175,19 @@ button:disabled {
   padding: 0.15rem 0.4rem;
   border-radius: 3px;
   font-size: 0.75rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tag:hover {
+  background: #444;
+  border-color: #666;
+}
+
+.tag.selected {
+  background: #2563eb;
+  border-color: #3b82f6;
 }
 
 .tag.clickable,
@@ -308,4 +321,123 @@ button:disabled {
 
 .tag-name {
   font-size: 0.9rem;
+}
+
+/* Tag Tree Buttons */
+.tag-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  color: inherit;
+}
+
+.tag-btn:hover {
+  background: #333;
+  border-color: #444;
+}
+
+.tag-btn.selected {
+  background: #2563eb;
+  border-color: #3b82f6;
+}
+
+.child-count {
+  color: #666;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+/* Entries Header with Filter Info */
+.entries-header {
+  margin-bottom: 0.75rem;
+}
+
+.entries-header h2 {
+  margin-bottom: 0.5rem;
+}
+
+.filter-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #1a1a2e;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.filter-label {
+  color: #888;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.breadcrumb-item {
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.85rem;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.breadcrumb-item:hover {
+  background: #333;
+  color: #fff;
+}
+
+.breadcrumb-item.current {
+  background: #2563eb;
+  color: #fff;
+}
+
+.breadcrumb-sep {
+  color: #555;
+}
+
+.clear-filter {
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+
+.clear-filter:hover {
+  background: #333;
+  color: #fff;
+}
+
+/* Show All Button */
+.show-all-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.show-all-btn:hover {
+  background: #333;
+  color: #fff;
 }

@@ -218,8 +218,52 @@ func (s *Store) ListTags() ([]domain.Tag, error) {
 	return tags, nil
 }
 
-// FindSimilar finds entries sharing tags with the given entry, excluding the entry itself
-func (s *Store) FindSimilar(entryID string, limit int) ([]domain.Entry, error) {
+// GetEntriesByTag returns entries with a specific tag (including child tags)
+func (s *Store) GetEntriesByTag(tagID string, includeChildren bool) ([]domain.Entry, error) {
+	var query string
+	if includeChildren {
+		// Recursive CTE to get tag and all descendants
+		query = `
+			WITH RECURSIVE tag_tree AS (
+				SELECT id FROM tags WHERE id = ? OR name = ?
+				UNION ALL
+				SELECT t.id FROM tags t JOIN tag_tree tt ON t.parent_id = tt.id
+			)
+			SELECT DISTINCT e.id, e.content, e.created_at, e.last_viewed_at
+			FROM entries e
+			JOIN entry_tags et ON e.id = et.entry_id
+			JOIN tag_tree tt ON et.tag_id = tt.id
+			ORDER BY e.created_at DESC
+		`
+	} else {
+		query = `
+			SELECT e.id, e.content, e.created_at, e.last_viewed_at
+			FROM entries e
+			JOIN entry_tags et ON e.id = et.entry_id
+			WHERE et.tag_id = ? OR et.tag_id IN (SELECT id FROM tags WHERE name = ?)
+			ORDER BY e.created_at DESC
+		`
+	}
+
+	rows, err := s.db.Query(query, tagID, tagID)
+	if err != nil {
+		return nil, fmt.Errorf("get entries by tag: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &e.LastViewedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// FindSimilarByTags finds entries sharing tags with the given entry, excluding the entry itself
+func (s *Store) FindSimilarByTags(entryID string, limit int) ([]domain.Entry, error) {
 	rows, err := s.db.Query(`
 		SELECT DISTINCT e.id, e.content, e.created_at, e.last_viewed_at
 		FROM entries e

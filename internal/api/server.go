@@ -197,16 +197,35 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := s.store.ListEntries(limit, offset)
+	// Filter by tag if specified
+	tagID := r.URL.Query().Get("tag")
+	includeChildren := r.URL.Query().Get("include_children") != "false"
+
+	var entries []domain.Entry
+	var err error
+
+	if tagID != "" {
+		entries, err = s.store.GetEntriesByTag(tagID, includeChildren)
+	} else {
+		entries, err = s.store.ListEntries(limit, offset)
+	}
+
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	// Load tags for each entry
+	for i := range entries {
+		tags, _ := s.store.GetEntryTags(entries[i].ID)
+		entries[i].Tags = tags
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"entries": entries,
 		"limit":   limit,
 		"offset":  offset,
+		"tag":     tagID,
 	})
 }
 

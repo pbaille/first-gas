@@ -6,19 +6,25 @@ const API = 'http://localhost:8080'
 function App() {
   const [entries, setEntries] = useState([])
   const [tags, setTags] = useState([])
+  const [flatTags, setFlatTags] = useState([])
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [selectedTag, setSelectedTag] = useState(null)
+  const [breadcrumb, setBreadcrumb] = useState([])
 
   useEffect(() => {
     fetchEntries()
     fetchTags()
   }, [])
 
-  async function fetchEntries() {
+  async function fetchEntries(tagId = null) {
     try {
-      const res = await fetch(`${API}/entries`)
+      const url = tagId
+        ? `${API}/entries?tag=${tagId}`
+        : `${API}/entries`
+      const res = await fetch(url)
       const data = await res.json()
       setEntries(data.entries || [])
     } catch (err) {
@@ -31,6 +37,7 @@ function App() {
       const res = await fetch(`${API}/tags`)
       const data = await res.json()
       setTags(data.tags || [])
+      setFlatTags(data.flat || [])
     } catch (err) {
       console.error('Failed to fetch tags')
     }
@@ -50,7 +57,7 @@ function App() {
       })
       if (!res.ok) throw new Error('Failed to add entry')
       setContent('')
-      fetchEntries()
+      fetchEntries(selectedTag?.id)
       fetchTags()
     } catch (err) {
       setError(err.message)
@@ -62,7 +69,7 @@ function App() {
   async function searchEntries(e) {
     e.preventDefault()
     if (!search.trim()) {
-      fetchEntries()
+      fetchEntries(selectedTag?.id)
       return
     }
     try {
@@ -74,14 +81,57 @@ function App() {
     }
   }
 
-  function TagTree({ nodes }) {
+  function buildBreadcrumb(tagId) {
+    const path = []
+    let currentId = tagId
+    while (currentId) {
+      const tag = flatTags.find(t => t.id === currentId)
+      if (tag) {
+        path.unshift(tag)
+        currentId = tag.parent_id
+      } else {
+        break
+      }
+    }
+    return path
+  }
+
+  function selectTag(tag) {
+    if (selectedTag?.id === tag.id) {
+      // Deselect
+      setSelectedTag(null)
+      setBreadcrumb([])
+      fetchEntries()
+    } else {
+      setSelectedTag(tag)
+      setBreadcrumb(buildBreadcrumb(tag.id))
+      fetchEntries(tag.id)
+    }
+    setSearch('')
+  }
+
+  function clearTagFilter() {
+    setSelectedTag(null)
+    setBreadcrumb([])
+    fetchEntries()
+  }
+
+  function TagTree({ nodes, level = 0 }) {
     if (!nodes || nodes.length === 0) return null
     return (
-      <ul className="tag-tree">
+      <ul className="tag-tree" style={{ paddingLeft: level > 0 ? '1rem' : 0 }}>
         {nodes.map(node => (
           <li key={node.id}>
-            <span className="tag-name">{node.name}</span>
-            {node.children && <TagTree nodes={node.children} />}
+            <button
+              className={`tag-btn ${selectedTag?.id === node.id ? 'selected' : ''}`}
+              onClick={() => selectTag(node)}
+            >
+              {node.name}
+              {node.children && node.children.length > 0 && (
+                <span className="child-count">({node.children.length})</span>
+              )}
+            </button>
+            {node.children && <TagTree nodes={node.children} level={level + 1} />}
           </li>
         ))}
       </ul>
@@ -121,7 +171,7 @@ function App() {
               placeholder="Search entries..."
             />
             <button type="submit">Search</button>
-            <button type="button" onClick={() => { setSearch(''); fetchEntries(); }}>
+            <button type="button" onClick={() => { setSearch(''); fetchEntries(selectedTag?.id); }}>
               Clear
             </button>
           </form>
@@ -129,7 +179,31 @@ function App() {
 
         <div className="content-grid">
           <section className="entries-section">
-            <h2>Entries ({entries.length})</h2>
+            <div className="entries-header">
+              <h2>Entries ({entries.length})</h2>
+              {selectedTag && (
+                <div className="filter-info">
+                  <span className="filter-label">Filtered by:</span>
+                  <nav className="breadcrumb">
+                    <button className="breadcrumb-item root" onClick={clearTagFilter}>
+                      All
+                    </button>
+                    {breadcrumb.map((tag, idx) => (
+                      <span key={tag.id}>
+                        <span className="breadcrumb-sep">›</span>
+                        <button
+                          className={`breadcrumb-item ${idx === breadcrumb.length - 1 ? 'current' : ''}`}
+                          onClick={() => selectTag(tag)}
+                        >
+                          {tag.name}
+                        </button>
+                      </span>
+                    ))}
+                  </nav>
+                  <button className="clear-filter" onClick={clearTagFilter}>×</button>
+                </div>
+              )}
+            </div>
             <ul className="entries-list">
               {entries.map(entry => (
                 <li key={entry.id} className="entry-card">
@@ -137,7 +211,13 @@ function App() {
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map(tag => (
-                        <span key={tag.id} className="tag">{tag.name}</span>
+                        <button
+                          key={tag.id}
+                          className={`tag ${selectedTag?.id === tag.id ? 'selected' : ''}`}
+                          onClick={() => selectTag(tag)}
+                        >
+                          {tag.name}
+                        </button>
                       ))}
                     </div>
                   )}
@@ -152,6 +232,11 @@ function App() {
 
           <aside className="tags-section">
             <h2>Tags</h2>
+            {selectedTag && (
+              <button className="show-all-btn" onClick={clearTagFilter}>
+                ← Show All Entries
+              </button>
+            )}
             <TagTree nodes={tags} />
             {tags.length === 0 && <p className="no-tags">No tags yet</p>}
           </aside>

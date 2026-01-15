@@ -232,18 +232,21 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load tags for each entry
+	for i := range entries {
+		tags, err := s.store.GetEntryTags(entries[i].ID)
+		if err == nil {
+			entries[i].Tags = tags
+		}
+	}
+
 	// Filter by tag if specified
 	if tagFilter != "" {
 		var filtered []domain.Entry
 		for _, e := range entries {
-			// Need to load tags for each entry
-			entry, err := s.store.GetEntry(e.ID)
-			if err != nil {
-				continue
-			}
-			for _, t := range entry.Tags {
+			for _, t := range e.Tags {
 				if t.Name == tagFilter {
-					filtered = append(filtered, *entry)
+					filtered = append(filtered, e)
 					break
 				}
 			}

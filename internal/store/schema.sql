@@ -25,3 +25,11 @@ CREATE TABLE IF NOT EXISTS entry_tags (
 CREATE INDEX IF NOT EXISTS idx_entry_tags_entry ON entry_tags(entry_id);
 CREATE INDEX IF NOT EXISTS idx_entry_tags_tag ON entry_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_tags_parent ON tags(parent_id);
+
+-- Embeddings for similarity search
+CREATE TABLE IF NOT EXISTS embeddings (
+    entry_id TEXT PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,
+    vector BLOB NOT NULL,
+    model TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

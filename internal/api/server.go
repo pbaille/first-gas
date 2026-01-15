@@ -9,6 +9,7 @@ import (
 
 	"github.com/pbaille/kb/internal/classifier"
 	"github.com/pbaille/kb/internal/domain"
+	"github.com/pbaille/kb/internal/embedding"
 	"github.com/pbaille/kb/internal/store"
 )
 
@@ -73,8 +74,9 @@ type AddEntryRequest struct {
 
 // AddEntryResponse is the response for adding an entry
 type AddEntryResponse struct {
-	Entry *domain.Entry    `json:"entry"`
-	Tags  []TagWithParent  `json:"tags,omitempty"`
+	Entry   *domain.Entry        `json:"entry"`
+	Tags    []TagWithParent      `json:"tags,omitempty"`
+	Similar []store.SimilarEntry `json:"similar,omitempty"`
 }
 
 // TagWithParent includes parent info for API response
@@ -144,6 +146,18 @@ func (s *Server) addEntry(w http.ResponseWriter, r *http.Request) {
 				entry, _ = s.store.GetEntry(entry.ID)
 				resp.Entry = entry
 			}
+		}
+	}
+
+	// Compute embedding and find similar entries
+	if embSvc, err := embedding.New(); err == nil {
+		if vector, err := embSvc.Embed(req.Content); err == nil {
+			// Find similar before saving (so we don't match ourselves)
+			similar, _ := s.store.FindSimilar(vector, 5, entry.ID)
+			resp.Similar = similar
+
+			// Save embedding for future similarity searches
+			s.store.SaveEmbedding(entry.ID, vector, "voyage-3-lite")
 		}
 	}
 

@@ -3,7 +3,9 @@ package store
 import (
 	"database/sql"
 	_ "embed"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -219,4 +221,98 @@ func (s *Store) SearchEntries(query string) ([]domain.Entry, error) {
 	}
 
 	return entries, nil
+}
+
+// SaveEmbedding stores an embedding vector for an entry
+func (s *Store) SaveEmbedding(entryID string, vector []float64, model string) error {
+	blob := vectorToBlob(vector)
+	_, err := s.db.Exec(
+		"INSERT OR REPLACE INTO embeddings (entry_id, vector, model, created_at) VALUES (?, ?, ?, ?)",
+		entryID, blob, model, time.Now(),
+	)
+	if err != nil {
+		return fmt.Errorf("save embedding: %w", err)
+	}
+	return nil
+}
+
+// SimilarEntry represents an entry with a similarity score
+type SimilarEntry struct {
+	Entry      domain.Entry `json:"entry"`
+	Similarity float64      `json:"similarity"`
+}
+
+// FindSimilar returns entries most similar to the given vector
+func (s *Store) FindSimilar(vector []float64, limit int, excludeID string) ([]SimilarEntry, error) {
+	rows, err := s.db.Query(`
+		SELECT e.id, e.content, e.created_at, em.vector
+		FROM entries e
+		JOIN embeddings em ON e.id = em.entry_id
+		WHERE e.id != ?
+	`, excludeID)
+	if err != nil {
+		return nil, fmt.Errorf("find similar: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SimilarEntry
+	for rows.Next() {
+		var e domain.Entry
+		var blob []byte
+		if err := rows.Scan(&e.ID, &e.Content, &e.CreatedAt, &blob); err != nil {
+			return nil, fmt.Errorf("scan similar: %w", err)
+		}
+
+		storedVec := blobToVector(blob)
+		sim := cosineSimilarity(vector, storedVec)
+
+		results = append(results, SimilarEntry{Entry: e, Similarity: sim})
+	}
+
+	// Sort by similarity descending
+	for i := 0; i < len(results)-1; i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].Similarity > results[i].Similarity {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
+
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results, nil
+}
+
+func vectorToBlob(v []float64) []byte {
+	buf := make([]byte, len(v)*8)
+	for i, f := range v {
+		binary.LittleEndian.PutUint64(buf[i*8:], math.Float64bits(f))
+	}
+	return buf
+}
+
+func blobToVector(b []byte) []float64 {
+	v := make([]float64, len(b)/8)
+	for i := range v {
+		v[i] = math.Float64frombits(binary.LittleEndian.Uint64(b[i*8:]))
+	}
+	return v
+}
+
+func cosineSimilarity(a, b []float64) float64 {
+	if len(a) != len(b) {
+		return 0
+	}
+	var dot, normA, normB float64
+	for i := range a {
+		dot += a[i] * b[i]
+		normA += a[i] * a[i]
+		normB += b[i] * b[i]
+	}
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
 }

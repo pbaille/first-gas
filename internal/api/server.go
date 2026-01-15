@@ -232,7 +232,7 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter by tag if specified
+	// Filter by tag if specified (supports both tag name and tag ID)
 	if tagFilter != "" {
 		var filtered []domain.Entry
 		for _, e := range entries {
@@ -242,7 +242,7 @@ func (s *Server) listEntries(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			for _, t := range entry.Tags {
-				if t.Name == tagFilter {
+				if t.Name == tagFilter || t.ID == tagFilter {
 					filtered = append(filtered, *entry)
 					break
 				}
